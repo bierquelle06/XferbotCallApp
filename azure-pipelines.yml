@@ -39,7 +39,7 @@ steps:
 - task: AzureWebApp@1
   displayName: 'Deploy Azure Bot App'
   inputs:
-    azureSubscription: 'AzureXferBotDev'
+    azureSubscription: 'AzureXferBotDevConnection'
     appName: Xferbot
     appType: 'webApp'
     package: $(Build.ArtifactStagingDirectory)/**/*.zip
