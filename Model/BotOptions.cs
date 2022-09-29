@@ -13,6 +13,11 @@ public class BotOptions
     public string AppSecret { get; set; }
 
     /// <summary>
+    /// Speech Subscription Key
+    /// </summary>
+    public string SpeechSubscriptionKey { get; set; }
+
+    /// <summary>
     /// Gets the calls uri of the application.
     /// </summary>
     public Uri BotBaseUrl { get; set; }

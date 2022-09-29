@@ -29,8 +29,10 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace CallingBotSample.Bots
 {
@@ -370,7 +372,17 @@ namespace CallingBotSample.Bots
             {
                 case "generatefile":
 
-                    var localFile = await GenerateTTSFile("Welcome");
+                    var localFile = await GenerateTextToSpeechFile("Welcome");
+
+                    var fileMessage = MessageFactory.Text("Test", InputHints.IgnoringInput);
+                    fileMessage.Attachments.Add(new Microsoft.Bot.Schema.Attachment
+                    {
+                        Name = localFile,
+                        ContentType = "application/json",
+                        ContentUrl = new Uri(this._botOptions.BotBaseUrl, localFile).ToString()
+                    });
+
+                    await turnContext.SendActivityAsync(fileMessage);
 
                     //var sb = new StringBuilder();
 
@@ -382,8 +394,6 @@ namespace CallingBotSample.Bots
                     //var ttsMediaPrompt = new MediaPrompt() { MediaInfo = ttsMedia, Loop = 1 };
 
                     //await this.Call.PlayPromptAsync(new List<MediaPrompt> { ttsMediaPrompt }).ConfigureAwait(false);
-
-                    await turnContext.SendActivityAsync("File : " + localFile);
 
                     break;
 
@@ -485,17 +495,52 @@ namespace CallingBotSample.Bots
 
         }
 
-        public async Task<string> GenerateTTSFile(string message)
+        private async Task<string> GenerateTextToSpeechFile(string message)
         {
-            var accessToken = await GetAccessToken("7334556c6e21477ba4c885d298995123");
-            var fileStream = await GetTTS(accessToken, message);
-
             var filename = Guid.NewGuid();
-            using (var stream = System.IO.File.Create("wwwroot/audio/" + filename + ".wav"))
+
+            var accessToken = await GetAccessToken(this._botOptions.SpeechSubscriptionKey);
+
+            string host = "https://westus.tts.speech.microsoft.com/cognitiveservices/v1";
+
+            // Create SSML document.
+            var xmlMessage = string.Format("<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'><voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice></speak>", message);
+
+            using (HttpClient client = new HttpClient())
             {
-                fileStream.Seek(0, SeekOrigin.Begin);
-                fileStream.CopyTo(stream);
+                using (HttpRequestMessage request = new HttpRequestMessage())
+                {
+                    // Set the HTTP method
+                    request.Method = HttpMethod.Post;
+                    // Construct the URI
+                    request.RequestUri = new Uri(host);
+                    // Set the content type header
+                    request.Content = new StringContent(xmlMessage, Encoding.UTF8, "application/ssml+xml");
+                    // Set additional header, such as Authorization and User-Agent
+                    request.Headers.Add("Authorization", "Bearer " + accessToken);
+                    request.Headers.Add("Connection", "Keep-Alive");
+                    // Update your resource name
+                    request.Headers.Add("User-Agent", "CallingBotSample");
+                    // Audio output format. See API reference for full list.
+                    request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
+                    // Create a request
+                    
+                    using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
+                    {
+                        response.EnsureSuccessStatusCode();
+                        // Asynchronously read the response
+                        using (Stream dataStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                        {
+                            using (FileStream fileStream = new FileStream(@"wwwroot/audio/" + filename + ".wav", FileMode.Create, FileAccess.Write, FileShare.Write))
+                            {
+                                await dataStream.CopyToAsync(fileStream).ConfigureAwait(false);
+                                fileStream.Close();
+                            }
+                        }
+                    }
+                }
             }
+
             return "audio/" + filename + ".wav";
         }
 
@@ -507,28 +552,13 @@ namespace CallingBotSample.Bots
             return await response.Content.ReadAsStringAsync();
         }
 
-        private async Task<Stream> GetTTS(string accessToken, string message)
-        {
-            var xmlMessage = string.Format("<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'><voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice></speak>", message);
-            HttpClient client = new HttpClient();
-            HttpContent content = new StringContent(xmlMessage);
-      
-            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/ssml+xml");
-            client.DefaultRequestHeaders.Add("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-            client.DefaultRequestHeaders.Add("User-Agent", "Your App Name");
-
-            var response = await client.PostAsync("https://speech.platform.bing.com/synthesize", content);
-            return await response.Content.ReadAsStreamAsync();
-        }
-
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
-            //var call = this._client.Calls().Where(x => x.Id == callId).FirstOrDefault();
+            //Greeting Coy Voice
+            var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
-            var localFile = await GenerateTTSFile("Welcome");
-
-            //call.PlayPromptAsync();
+            //Voice File
+            var uriString = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile).ToString();
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
@@ -539,7 +569,7 @@ namespace CallingBotSample.Bots
                                         {
                                               new MediaInfo()
                                               {
-                                                  Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
+                                                  Uri = uriString,
                                                   ResourceId = Guid.NewGuid().ToString(),
                                               }
                                         }
@@ -559,7 +589,7 @@ namespace CallingBotSample.Bots
                              {
                                  MediaInfo = new MediaInfo
                                  {
-                                     Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
+                                     Uri = uriString,
                                      ResourceId = Guid.NewGuid().ToString(),
                                  }
                              }
