@@ -3,8 +3,10 @@
 //
 // Generated with Bot Builder V4 SDK Template for Visual Studio CoreBot v4.11.1
 
+using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Builder.TraceExtensions;
+using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -12,20 +14,36 @@ namespace CallingBotSample
 {
     public class AdapterWithErrorHandler : BotFrameworkHttpAdapter
     {
-        public AdapterWithErrorHandler(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger)
+        public AdapterWithErrorHandler(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger, ConversationState conversationState = null)
             : base(configuration, logger)
         {
             OnTurnError = async (turnContext, exception) =>
             {
                 // Log any leaked exception from the application.
-                logger.LogError(exception, $"[OnTurnError] unhandled error : {exception.Message}");
+                //logger.LogError(exception, $"[OnTurnError] unhandled error : {exception.Message}");
 
-                // Send a message to the user
-                await turnContext.SendActivityAsync("The bot encountered an error or bug.");
-                await turnContext.SendActivityAsync("To continue to run this bot, please fix the bot source code.");
+                //var errorMessageText = "The bot encountered an error or bug.";
+                //var errorMessage = MessageFactory.Text(errorMessageText, errorMessageText, InputHints.IgnoringInput);
+                //await turnContext.SendActivityAsync(errorMessage);
+
+                //errorMessageText = "To continue to run this bot, please fix the bot source code.";
+                //errorMessage = MessageFactory.Text(errorMessageText, errorMessageText, InputHints.ExpectingInput);
+                //await turnContext.SendActivityAsync(errorMessage);
+
+                if (conversationState != null)
+                {
+                    try
+                    {
+                        await conversationState.DeleteAsync(turnContext);
+                    }
+                    catch (System.Exception e)
+                    {
+                        logger.LogError(e, $"Exception caught on attempting to Delete ConversationState : {e.Message}");
+                    }
+                }
 
                 // Send a trace activity, which will be displayed in the Bot Framework Emulator
-                await turnContext.TraceActivityAsync("OnTurnError Trace", exception.Message, "https://www.botframework.com/schemas/error", "TurnError");
+                // await turnContext.TraceActivityAsync("OnTurnError Trace", exception.Message, "https://www.botframework.com/schemas/error", "TurnError");
             };
         }
     }

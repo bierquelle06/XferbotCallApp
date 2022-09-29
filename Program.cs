@@ -19,6 +19,16 @@ namespace CallingBotSample
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
+                    webBuilder.UseSentry(o =>
+                    {
+                        o.Dsn = "https://8ec15f7fdaa848029eb07665cba6b4ef@o504565.ingest.sentry.io/6780092";
+                        // When configuring for the first time, to see what the SDK is doing:
+                        o.Debug = true;
+                        // Set TracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
+                        // We recommend adjusting this value in production.
+                        o.TracesSampleRate = 1.0;
+                    });
+
                     webBuilder.UseStartup<Startup>();
                 });
     }

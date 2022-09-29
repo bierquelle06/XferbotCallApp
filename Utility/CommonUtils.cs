@@ -1,4 +1,5 @@
 ﻿using Microsoft.Graph.Communications.Common.Telemetry;
+using Sentry;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace CallingBotSample.Utility
     {
         public static async Task ForgetAndLogExceptionAsync(
             this Task task,
-            IGraphLogger logger,
+            IHub sentryHub,
             string description = null,
             [CallerMemberName] string memberName = null,
             [CallerFilePath] string filePath = null,
@@ -20,21 +21,20 @@ namespace CallingBotSample.Utility
             try
             {
                 await task.ConfigureAwait(false);
-                logger?.Verbose(
-                    $"Completed running task successfully: {description ?? string.Empty}",
-                    memberName: memberName,
-                    filePath: filePath,
-                    lineNumber: lineNumber);
+
+                sentryHub.CaptureMessage($"Completed running task successfully: {description ?? string.Empty}" +
+                    $"memberName: {memberName}" +
+                    $"filePath: {filePath}" +
+                    $"lineNumber: {lineNumber}");
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                // Log and absorb all exceptions here.
-                logger?.Error(
-                    e,
-                    $"Caught an Exception running the task: {description ?? string.Empty}",
-                    memberName: memberName,
-                    filePath: filePath,
-                    lineNumber: lineNumber);
+                sentryHub.CaptureException(ex);
+
+                sentryHub.CaptureMessage($"Completed running task successfully: {description ?? string.Empty}" +
+                   $"memberName: {memberName}" +
+                   $"filePath: {filePath}" +
+                   $"lineNumber: {lineNumber}");
             }
         }
     }

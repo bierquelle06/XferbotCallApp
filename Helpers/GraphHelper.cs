@@ -43,8 +43,41 @@ namespace CallingBotSample.Helpers
         {
             this.logger = logger;
             this.configuration = configuration;
-            this.users = configuration.GetSection("Users").Get<Configuration.User[]>().AsEnumerable();
+            this.users = LoadUserGraphAsync().GetAwaiter().GetResult();//configuration.GetSection("Users").Get<Configuration.User[]>().AsEnumerable();
             this.graphServiceClient = graphServiceClient;
+        }
+
+        public async Task<List<Configuration.User>> LoadUserGraphAsync()
+        {
+            List<Configuration.User> result = new List<Configuration.User>();
+
+            try
+            {
+                var graphResult = await graphServiceClient.Users.Request().GetAsync();
+
+                for (int i = 0; i < graphResult.Count(); i++)
+                {
+                    var graphItem = graphResult[i];
+
+                    result.Add(new Configuration.User()
+                    {
+                        Id = graphItem.Id,
+                        DisplayName = graphItem.DisplayName ?? "",
+                        GivenName = graphItem.GivenName ?? "",
+                        Language = graphItem.PreferredLanguage ?? "en-US",
+                        MobilePhone = graphItem.MobilePhone ?? "",
+                        OfficeLocation = graphItem.OfficeLocation ?? "",
+                        Surname = graphItem.Surname ?? ""
+                    });
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, ex.Message);
+                return null;
+            }
         }
 
         /// <inheritdoc/>
@@ -71,8 +104,10 @@ namespace CallingBotSample.Helpers
             }
         }
 
-        public async Task<Call> CreateCallAsync()
+        public async Task<Call> CreateCallAsync(string id)
         {
+            var user = this.users.Where(x => x.Id == id).FirstOrDefault();
+
             var call = new Call
             {
                 CallbackUri = $"{this.configuration[Common.Constants.BotBaseUrlConfigurationSettingsKey]}/callback",
@@ -85,8 +120,8 @@ namespace CallingBotSample.Helpers
                             {
                                 User = new Identity
                                 {
-                                    DisplayName = this.users.FirstOrDefault().DisplayName,
-                                    Id = this.users.FirstOrDefault().Id
+                                    DisplayName = user.DisplayName,
+                                    Id = user.Id
                                 }
                             }
                         }

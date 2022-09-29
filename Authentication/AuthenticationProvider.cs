@@ -12,10 +12,11 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Sentry;
 
 namespace CallingBotSample.Utility
 {
-    public class AuthenticationProvider : ObjectRoot, IRequestAuthenticationProvider
+    public class AuthenticationProvider : IRequestAuthenticationProvider
     {
         private readonly string appName;
         private readonly string appId;
@@ -36,13 +37,18 @@ namespace CallingBotSample.Utility
         /// </summary>
         private OpenIdConnectConfiguration openIdConfiguration;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        private IHub sentryHub;
 
-        public AuthenticationProvider(string appName, string appId, string appSecret, IGraphLogger logger)
-           : base(logger.NotNull(nameof(logger)).CreateShim(nameof(AuthenticationProvider)))
+        public AuthenticationProvider(string appName, string appId, string appSecret, IHub hub)
         {
             this.appName = appName.NotNullOrWhitespace(nameof(appName));
             this.appId = appId.NotNullOrWhitespace(nameof(appId));
             this.appSecret = appSecret.NotNullOrWhitespace(nameof(appSecret));
+
+            this.sentryHub = hub;
         }
 
         /// <summary>
@@ -69,7 +75,7 @@ namespace CallingBotSample.Utility
             tenant = string.IsNullOrWhiteSpace(tenant) ? "common" : tenant;
             var tokenLink = oauthV2TokenLink.Replace(replaceString, tenant);
 
-            this.GraphLogger.Info("AuthenticationProvider: Generating OAuth token.");
+            this.sentryHub.CaptureMessage("AuthenticationProvider: Generating OAuth token.");
             var context = new AuthenticationContext(tokenLink);
             var creds = new ClientCredential(this.appId, this.appSecret);
 
@@ -80,11 +86,12 @@ namespace CallingBotSample.Utility
             }
             catch (Exception ex)
             {
-                this.GraphLogger.Error(ex, $"Failed to generate token for client: {this.appId}");
+                this.sentryHub.CaptureException(ex);
+                this.sentryHub.CaptureMessage($"Failed to generate token for client: {this.appId}");
                 throw;
             }
 
-            this.GraphLogger.Info($"AuthenticationProvider: Generated OAuth token. Expires in {result.ExpiresOn.Subtract(DateTimeOffset.UtcNow).TotalMinutes} minutes.");
+            this.sentryHub.CaptureMessage($"AuthenticationProvider: Generated OAuth token. Expires in {result.ExpiresOn.Subtract(DateTimeOffset.UtcNow).TotalMinutes} minutes.");
 
             request.Headers.Authorization = new AuthenticationHeaderValue(schema, result.AccessToken);
         }
@@ -112,7 +119,7 @@ namespace CallingBotSample.Utility
             const string authDomain = "https://api.aps.skype.com/v1/.well-known/OpenIdConfiguration";
             if (this.openIdConfiguration == null || DateTime.Now > this.prevOpenIdConfigUpdateTimestamp.Add(this.openIdConfigRefreshInterval))
             {
-                this.GraphLogger.Info("Updating OpenID configuration");
+                this.sentryHub.CaptureMessage("Updating OpenID configuration");
 
                 // Download the OIDC configuration which contains the JWKS
                 IConfigurationManager<OpenIdConnectConfiguration> configurationManager =
@@ -158,7 +165,9 @@ namespace CallingBotSample.Utility
             catch (Exception ex)
             {
                 // Some other error
-                this.GraphLogger.Error(ex, $"Failed to validate token for client: {this.appId}.");
+                this.sentryHub.CaptureException(ex);
+                this.sentryHub.CaptureMessage($"Failed to validate token for client: {this.appId}.");
+
                 return new RequestValidationResult() { IsValid = false };
             }
 

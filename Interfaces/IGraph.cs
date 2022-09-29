@@ -4,6 +4,7 @@
 
 namespace CallingBotSample.Interfaces
 {
+    using System.Collections.Generic;
     using System.Threading.Tasks;
     using Microsoft.Graph;
 
@@ -22,7 +23,7 @@ namespace CallingBotSample.Interfaces
         /// Creates call.
         /// </summary>
         /// <returns>Call.</returns>
-        Task<Call> CreateCallAsync();
+        Task<Call> CreateCallAsync(string id);
 
         /// <summary>
         /// Transfer call.
@@ -42,5 +43,10 @@ namespace CallingBotSample.Interfaces
         /// <returns>JoinScheduledMeeting.</returns>
         void InviteParticipant(string meetingId);
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        Task<List<Configuration.User>> LoadUserGraphAsync();
     }
 }
