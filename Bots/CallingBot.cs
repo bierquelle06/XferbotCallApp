@@ -571,7 +571,7 @@ namespace CallingBotSample.Bots
             //Voice File
             var uriFile = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile);
 
-            _sentryHub.CaptureMessage("File : " + uriFile.ToString());
+            _sentryHub.CaptureMessage("File Uri : " + uriFile.ToString());
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
