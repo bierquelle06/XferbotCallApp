@@ -557,8 +557,12 @@ namespace CallingBotSample.Bots
             //Greeting Coy Voice
             var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
+            _sentryHub.CaptureMessage("File : " + greetingCopyVoiceFile);
+
             //Voice File
             var uriString = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile).ToString();
+
+            _sentryHub.CaptureMessage("File : " + uriString);
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
