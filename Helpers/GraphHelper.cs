@@ -43,8 +43,8 @@ namespace CallingBotSample.Helpers
         {
             this.logger = logger;
             this.configuration = configuration;
-            this.users = LoadUserGraphAsync().GetAwaiter().GetResult();//configuration.GetSection("Users").Get<Configuration.User[]>().AsEnumerable();
             this.graphServiceClient = graphServiceClient;
+            this.users = LoadUserGraphAsync().GetAwaiter().GetResult();//configuration.GetSection("Users").Get<Configuration.User[]>().AsEnumerable();
         }
 
         public async Task<List<Configuration.User>> LoadUserGraphAsync()

@@ -367,6 +367,20 @@ namespace CallingBotSample.Bots
             ///CALISMAYACAK
             switch (input)
             {
+                case "downloadjson":
+
+                    var message = MessageFactory.Text("Test", InputHints.IgnoringInput);
+                    message.Attachments.Add(new Microsoft.Bot.Schema.Attachment
+                    {
+                        Name = "Test.json",
+                        ContentType = "application/json",
+                        ContentUrl = new Uri(this._botOptions.BotBaseUrl, "audio/test.json").ToString()
+                    });
+
+                    await turnContext.SendActivityAsync(message);
+
+                    break;
+
                 case "createcall":
 
                     var call = await this._graph.CreateCallAsync(user.Id);
