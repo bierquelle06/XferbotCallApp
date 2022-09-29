@@ -261,6 +261,8 @@ namespace CallingBotSample.Bots
         {
             try
             {
+                _sentryHub.CaptureMessage("STEP 2");
+
                 var httpRequest = request.CreateRequestMessage();
                 var results = await this._authenticationProvider.ValidateInboundRequestAsync(httpRequest).ConfigureAwait(false);
                 if (results.IsValid)
@@ -274,10 +276,13 @@ namespace CallingBotSample.Bots
                     await httpResponse.CreateHttpResponseAsync(response).ConfigureAwait(false);
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
+                _sentryHub.CaptureMessage("ProcessNotificationAsync Error : " + ex.ToString());
+                _sentryHub.CaptureException(ex);
+
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                await response.WriteAsync(e.ToString()).ConfigureAwait(false);
+                await response.WriteAsync(ex.ToString()).ConfigureAwait(false);
             }
         }
 
@@ -441,8 +446,8 @@ namespace CallingBotSample.Bots
 
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
-            tenantCodeCycle = tenantId;
-            scenarioIdCodeCycle = scenarioId;
+            //tenantCodeCycle = tenantId;
+            //scenarioIdCodeCycle = scenarioId;
 
 
             //text to speech
@@ -476,6 +481,11 @@ namespace CallingBotSample.Bots
             //await this.Call.PlayPromptAsync(result).ConfigureAwait(false);
 
 
+
+            //string welcome = "WELCOME";
+            //var voiceOject = CONVERTTOVOICE(welcome);
+
+            //PlayVoice(voiceOject);
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
