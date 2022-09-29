@@ -25,6 +25,7 @@ using Sentry;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -367,6 +368,35 @@ namespace CallingBotSample.Bots
             ///CALISMAYACAK
             switch (input)
             {
+                case "generatefile":
+
+                    var localFile = await GenerateTTSFile("Welcome");
+
+                    //var sb = new StringBuilder();
+
+                    //var ttsMedia = new MediaInfo
+                    //{
+                    //    Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
+                    //    ResourceId = Guid.NewGuid().ToString(),
+                    //};
+                    //var ttsMediaPrompt = new MediaPrompt() { MediaInfo = ttsMedia, Loop = 1 };
+
+                    //await this.Call.PlayPromptAsync(new List<MediaPrompt> { ttsMediaPrompt }).ConfigureAwait(false);
+
+                    await turnContext.SendActivityAsync("File : " + localFile);
+
+                    break;
+
+                case "talk":
+
+                    var msg = MessageFactory.Text($"Echo: TALK",
+                        "<speak version=\"1.0\" xmlns=\"https://www.w3.org/2001/10/synthesis\" xmlns:mstts=\"https://www.w3.org/2001/mstts\" xml:lang=\"en-US\">" +
+                        "<voice name=\"en-US-JennyNeural\">Hello World</voice>" +
+                        "</speak>");
+                    await turnContext.SendActivityAsync(msg);
+
+                    break;
+
                 case "downloadjson":
 
                     var message = MessageFactory.Text("Test", InputHints.IgnoringInput);
@@ -455,51 +485,50 @@ namespace CallingBotSample.Bots
 
         }
 
-        private string tenantCodeCycle;
-        private Guid scenarioIdCodeCycle;
+        public async Task<string> GenerateTTSFile(string message)
+        {
+            var accessToken = await GetAccessToken("7334556c6e21477ba4c885d298995123");
+            var fileStream = await GetTTS(accessToken, message);
+
+            var filename = Guid.NewGuid();
+            using (var stream = System.IO.File.Create("wwwroot/audio/" + filename + ".wav"))
+            {
+                fileStream.Seek(0, SeekOrigin.Begin);
+                fileStream.CopyTo(stream);
+            }
+            return "audio/" + filename + ".wav";
+        }
+
+        private async Task<string> GetAccessToken(string subscriptionKey)
+        {
+            HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
+            var response = await client.PostAsync("https://westus.api.cognitive.microsoft.com/sts/v1.0/issuetoken", null);
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        private async Task<Stream> GetTTS(string accessToken, string message)
+        {
+            var xmlMessage = string.Format("<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'><voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice></speak>", message);
+            HttpClient client = new HttpClient();
+            HttpContent content = new StringContent(xmlMessage);
+      
+            content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/ssml+xml");
+            client.DefaultRequestHeaders.Add("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            client.DefaultRequestHeaders.Add("User-Agent", "Your App Name");
+
+            var response = await client.PostAsync("https://speech.platform.bing.com/synthesize", content);
+            return await response.Content.ReadAsStreamAsync();
+        }
 
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
-            //tenantCodeCycle = tenantId;
-            //scenarioIdCodeCycle = scenarioId;
+            //var call = this._client.Calls().Where(x => x.Id == callId).FirstOrDefault();
 
+            var localFile = await GenerateTTSFile("Welcome");
 
-            //text to speech
-            //We need find to example for this case.
-
-            // TEXT => VOICE çevirsin....
-            //                var OFFICE_greetingCopy = "COSMOS DB den veya GRAPH tan çektiðin bilgi";
-            //
-            // var userList = await this._graph.LoadUserGraphAsync();
-            // var user = userList.Where(x=> x.Id == callId).FirstOrDefault();
-
-            //
-            //user.OfficeLocation
-            //
-
-            //
-            //Offices... tan OfficeName == user.OfficeLocation çekip...
-            //
-
-            //var OFFICE_greetingCopy = "COSMOS DB den veya GRAPH tan çektiðin bilgi";
-
-            //string inputMessage = OFFICE_greetingCopy;//"Hello, Mr. Zeki Kara";
-            //                                          //text to speech
-            //                                          //We need find to example for this case.
-
-            //// TEXT => VOICE çevirsin....
-            ////
-
-            //var result = ConverterVoice(inputMessage);
-
-            //await this.Call.PlayPromptAsync(result).ConfigureAwait(false);
-
-
-
-            //string welcome = "WELCOME";
-            //var voiceOject = CONVERTTOVOICE(welcome);
-
-            //PlayVoice(voiceOject);
+            //call.PlayPromptAsync();
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
@@ -508,11 +537,11 @@ namespace CallingBotSample.Bots
                                     {
                                         PreFetchMedia = new List<MediaInfo>()
                                         {
-                                            new MediaInfo()
-                                            {
-                                                Uri = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav").ToString(),
-                                                ResourceId = Guid.NewGuid().ToString(),
-                                            }
+                                              new MediaInfo()
+                                              {
+                                                  Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
+                                                  ResourceId = Guid.NewGuid().ToString(),
+                                              }
                                         }
                                     },
                                     acceptedModalities: new List<Modality> { Modality.Audio }).Request().PostAsync()
@@ -526,18 +555,19 @@ namespace CallingBotSample.Bots
                     await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
                        prompts: new List<Microsoft.Graph.Prompt>()
                        {
-                           new MediaPrompt
-                           {
-                               MediaInfo = new MediaInfo
-                               {
-                                   Uri = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav").ToString(),
-                                   ResourceId = Guid.NewGuid().ToString(),
-                               }
-                           }
+                             new MediaPrompt
+                             {
+                                 MediaInfo = new MediaInfo
+                                 {
+                                     Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
+                                     ResourceId = Guid.NewGuid().ToString(),
+                                 }
+                             }
                        }).Request().PostAsync();
                 }
             }
           );
+
         }
     }
 }
