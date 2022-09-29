@@ -504,7 +504,10 @@ namespace CallingBotSample.Bots
             string host = "https://westus.tts.speech.microsoft.com/cognitiveservices/v1";
 
             // Create SSML document.
-            var xmlMessage = string.Format("<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'><voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice></speak>", message);
+            var xmlMessage = string.Format(
+                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>" + 
+                    "<voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice>" + 
+                "</speak>", message);
 
             using (HttpClient client = new HttpClient())
             {
@@ -512,22 +515,28 @@ namespace CallingBotSample.Bots
                 {
                     // Set the HTTP method
                     request.Method = HttpMethod.Post;
+                    
                     // Construct the URI
                     request.RequestUri = new Uri(host);
+
                     // Set the content type header
                     request.Content = new StringContent(xmlMessage, Encoding.UTF8, "application/ssml+xml");
+                    
                     // Set additional header, such as Authorization and User-Agent
                     request.Headers.Add("Authorization", "Bearer " + accessToken);
                     request.Headers.Add("Connection", "Keep-Alive");
+                    
                     // Update your resource name
                     request.Headers.Add("User-Agent", "CallingBotSample");
+                    
                     // Audio output format. See API reference for full list.
                     request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
-                    // Create a request
                     
+                    // Create a request
                     using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
                     {
                         response.EnsureSuccessStatusCode();
+                        
                         // Asynchronously read the response
                         using (Stream dataStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                         {
@@ -560,9 +569,9 @@ namespace CallingBotSample.Bots
             _sentryHub.CaptureMessage("File : " + greetingCopyVoiceFile);
 
             //Voice File
-            var uriString = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile).ToString();
+            var uriFile = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile);
 
-            _sentryHub.CaptureMessage("File : " + uriString);
+            _sentryHub.CaptureMessage("File : " + uriFile.ToString());
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
@@ -573,7 +582,7 @@ namespace CallingBotSample.Bots
                                         {
                                               new MediaInfo()
                                               {
-                                                  Uri = uriString,
+                                                  Uri = uriFile.ToString(),
                                                   ResourceId = Guid.NewGuid().ToString(),
                                               }
                                         }
@@ -586,18 +595,27 @@ namespace CallingBotSample.Bots
                 if (antecedent.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
                 {
                     await Task.Delay(5000);
-                    await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
+                    
+                    var resultPrompt = await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
                        prompts: new List<Microsoft.Graph.Prompt>()
                        {
                              new MediaPrompt
                              {
                                  MediaInfo = new MediaInfo
                                  {
-                                     Uri = uriString,
+                                     Uri = uriFile.ToString(),
                                      ResourceId = Guid.NewGuid().ToString(),
                                  }
                              }
                        }).Request().PostAsync();
+
+                    //Completed then delete
+                    if (resultPrompt.Status == OperationStatus.Completed)
+                    {
+                        _sentryHub.CaptureMessage("Delete File : " + uriFile.AbsolutePath);
+
+                        System.IO.File.Delete(Path.GetFileName(uriFile.AbsolutePath));
+                    }
                 }
             }
           );
