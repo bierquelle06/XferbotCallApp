@@ -372,7 +372,7 @@ namespace CallingBotSample.Bots
             {
                 case "generatefile":
 
-                    var localFile = await GenerateTextToSpeechFile("Welcome");
+                    var localFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
                     var fileMessage = MessageFactory.Text("Test", InputHints.IgnoringInput);
                     fileMessage.Attachments.Add(new Microsoft.Bot.Schema.Attachment
