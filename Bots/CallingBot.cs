@@ -258,23 +258,26 @@ namespace CallingBotSample.Bots
         /// <param name="request"></param>
         /// <param name="response"></param>
         /// <returns></returns>
-        public async Task ProcessNotificationAsync(
-            HttpRequest request,
-            HttpResponse response)
+        public async Task ProcessNotificationAsync(HttpRequest request, HttpResponse response)
         {
             try
             {
-                _sentryHub.CaptureMessage("STEP 2");
+                _sentryHub.CaptureMessage("STEP 2 : ProcessNotificationAsync");
 
                 var httpRequest = request.CreateRequestMessage();
                 var results = await this._authenticationProvider.ValidateInboundRequestAsync(httpRequest).ConfigureAwait(false);
+
                 if (results.IsValid)
                 {
+                    _sentryHub.CaptureMessage("STEP 2.1 : CreateHttpResponseAsync");
+
                     var httpResponse = await this._notificationProcessor.ProcessNotificationAsync(httpRequest).ConfigureAwait(false);
                     await httpResponse.CreateHttpResponseAsync(response).ConfigureAwait(false);
                 }
                 else
                 {
+                    _sentryHub.CaptureMessage("STEP 2.2 : CreateHttpResponseAsync :: Forbidden");
+
                     var httpResponse = httpRequest.CreateResponse(HttpStatusCode.Forbidden);
                     await httpResponse.CreateHttpResponseAsync(response).ConfigureAwait(false);
                 }
@@ -372,17 +375,19 @@ namespace CallingBotSample.Bots
             {
                 case "generatefile":
 
-                    var localFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
+                    //var localFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
-                    var fileMessage = MessageFactory.Text("Test", InputHints.IgnoringInput);
-                    fileMessage.Attachments.Add(new Microsoft.Bot.Schema.Attachment
-                    {
-                        Name = localFile,
-                        ContentType = "application/json",
-                        ContentUrl = new Uri(this._botOptions.BotBaseUrl, localFile).ToString()
-                    });
+                    var localFile = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav");//"audio/4f3aeeba-2a2c-4001-aebf-c92101a9b31a.wav");
 
-                    await turnContext.SendActivityAsync(fileMessage);
+                    //var fileMessage = MessageFactory.Text(localFile.ToString(), InputHints.IgnoringInput);
+                    //fileMessage.Attachments.Add(new Microsoft.Bot.Schema.Attachment
+                    //{
+                    //    Name = localFile.ToString(),
+                    //    ContentType = "audio/wav",
+                    //    ContentUrl = localFile.ToString()
+                    //});
+
+                    await turnContext.SendActivityAsync(localFile.ToString());
 
                     //var sb = new StringBuilder();
 
@@ -483,7 +488,7 @@ namespace CallingBotSample.Bots
 
         private async Task NotificationProcessor_OnNotificationReceivedAsync(NotificationEventArgs args)
         {
-            this._sentryHub.CaptureMessage($"CorrelationId :: {args.ScenarioId}");
+            this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : CorrelationId :: {args.ScenarioId}");
 
             if (args.ResourceData is Call call)
             {
@@ -564,12 +569,12 @@ namespace CallingBotSample.Bots
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
             //Greeting Coy Voice
-            var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
+            //var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
-            _sentryHub.CaptureMessage("File : " + greetingCopyVoiceFile);
+            //_sentryHub.CaptureMessage("File : " + greetingCopyVoiceFile);
 
             //Voice File
-            var uriFile = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile);
+            var uriFile = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav");//4f3aeeba-2a2c-4001-aebf-c92101a9b31a.wav");
 
             _sentryHub.CaptureMessage("File Uri : " + uriFile.ToString());
 
@@ -583,7 +588,7 @@ namespace CallingBotSample.Bots
                                               new MediaInfo()
                                               {
                                                   Uri = uriFile.ToString(),
-                                                  ResourceId = Guid.NewGuid().ToString(),
+                                                  ResourceId = Guid.NewGuid().ToString()
                                               }
                                         }
                                     },
@@ -610,12 +615,12 @@ namespace CallingBotSample.Bots
                        }).Request().PostAsync();
 
                     //Completed then delete
-                    if (resultPrompt.Status == OperationStatus.Completed)
-                    {
-                        _sentryHub.CaptureMessage("Delete File : " + uriFile.AbsolutePath);
+                    //if (resultPrompt.Status == OperationStatus.Completed)
+                    //{
+                    //    _sentryHub.CaptureMessage("Delete File : " + uriFile.AbsolutePath);
 
-                        System.IO.File.Delete(Path.GetFileName(uriFile.AbsolutePath));
-                    }
+                    //    //System.IO.File.Delete(Path.GetFileName(uriFile.AbsolutePath));
+                    //}
                 }
             }
           );

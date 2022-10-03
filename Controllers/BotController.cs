@@ -21,14 +21,15 @@ namespace CallingBotSample.Controllers
     public class BotController : ControllerBase
     {
         private readonly IBotFrameworkHttpAdapter _adapter;
+
         private readonly CallingBot _callingBot;
 
         private readonly IHub _sentryHub;
 
-        public BotController(IBotFrameworkHttpAdapter adapter, CallingBot bot, IHub sentryHub)
+        public BotController(IBotFrameworkHttpAdapter adapter, IHub sentryHub, CallingBot bot)
         {
-            _sentryHub = sentryHub;
             _adapter = adapter;
+            _sentryHub = sentryHub;
             _callingBot = bot;
         }
 
@@ -36,11 +37,13 @@ namespace CallingBotSample.Controllers
         [Route(HttpRouteConstants.MessagesRequestRoute)]
         public async Task PostAsync()
         {
-            _sentryHub.CaptureMessage("BotController :: PostAsync");
+            var log = $"STEP 1 : PostAsync :: Received HTTP {this.Request.Method}, {this.Request.Path}";
+
+            this._sentryHub.CaptureMessage("BotController :: PostAsync");
 
             // Delegate the processing of the HTTP POST to the adapter.
             // The adapter will invoke the bot.
-            await _adapter.ProcessAsync(Request, Response, _callingBot);
+            await _adapter.ProcessAsync(this.Request, this.Response, this._callingBot);
         }
     }
 }

@@ -17,22 +17,26 @@ namespace CallingMeetingBot.Controllers
     [Route(HttpRouteConstants.OnIncomingRequestRoute)]
     public class CallbackController: Controller
     {
+        private readonly IBotFrameworkHttpAdapter _adapter;
+
         private readonly CallingBot _callingBot;
 
         private readonly IHub _sentryHub;
 
-        public CallbackController(CallingBot bot, IHub sentryHub)
+        public CallbackController(IBotFrameworkHttpAdapter adapter, IHub sentryHub, CallingBot bot)
         {
-            this._callingBot = bot;
+            this._adapter = adapter;
             this._sentryHub = sentryHub;
+            this._callingBot = bot;
         }
 
         [HttpPost, HttpGet]
         public async Task HandleCallbackRequestAsync()
         {
-            var log = $"STEP 1 : Received HTTP {this.Request.Method}, {this.Request.Path} OnIncomingRequestAsync";
+            var log = $"STEP 1 : HandleCallbackRequestAsync :: Received HTTP {this.Request.Method}, {this.Request.Path}";
             this._sentryHub.CaptureMessage(message: log);
 
+            //await _adapter.ProcessAsync(this.Request, this.Response, this._callingBot).ConfigureAwait(false);
             await this._callingBot.ProcessNotificationAsync(this.Request, this.Response).ConfigureAwait(false);
         }
 
