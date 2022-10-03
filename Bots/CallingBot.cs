@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+ï»¿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using CallingBotSample.Configuration;
 using CallingBotSample.Interfaces;
 using CallingBotSample.Utility;
 using CallingMeetingBot.Extenstions;
@@ -10,17 +11,16 @@ using Microsoft.Bot.Builder.Teams;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Communications.Calls;
 using Microsoft.Graph.Communications.Calls.Media;
 using Microsoft.Graph.Communications.Client;
 using Microsoft.Graph.Communications.Client.Authentication;
 using Microsoft.Graph.Communications.Common;
-using Microsoft.Graph.Communications.Common.Telemetry;
 using Microsoft.Graph.Communications.Core.Notifications;
 using Microsoft.Graph.Communications.Core.Serialization;
 using Microsoft.Skype.Bots.Media;
+using Newtonsoft.Json;
 using Sentry;
 using System;
 using System.Collections.Concurrent;
@@ -32,14 +32,13 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace CallingBotSample.Bots
 {
     public class CallingBot : ActivityHandler
     {
         private readonly IConfiguration _configuration;
-        
+
         private readonly IHub _sentryHub;
         private IRequestAuthenticationProvider _authenticationProvider { get; }
 
@@ -69,12 +68,12 @@ namespace CallingBotSample.Bots
             this._client = null;
         }
 
-        public CallingBot(BotOptions options, 
-            IConfiguration configuration, 
-            ICard card, 
-            IGraph graph, 
-            IGraphServiceClient graphServiceClient, 
-            ConversationState conversationState, 
+        public CallingBot(BotOptions options,
+            IConfiguration configuration,
+            ICard card,
+            IGraph graph,
+            IGraphServiceClient graphServiceClient,
+            ConversationState conversationState,
             UserState userState,
             IHub sentryHub)
         {
@@ -89,7 +88,7 @@ namespace CallingBotSample.Bots
             this._graph = graph;
 
             this._graphServiceClient = graphServiceClient;
-            
+
             var name = this.GetType().Assembly.GetName().Name;
 
             var builder = new CommunicationsClientBuilder(name, options.AppId);
@@ -295,7 +294,7 @@ namespace CallingBotSample.Bots
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
             var credentials = new MicrosoftAppCredentials(
-                this._configuration[Common.Constants.MicrosoftAppIdConfigurationSettingsKey], 
+                this._configuration[Common.Constants.MicrosoftAppIdConfigurationSettingsKey],
                 this._configuration[Common.Constants.MicrosoftAppPasswordConfigurationSettingsKey]);
 
             ConversationReference conversationReference = null;
@@ -358,15 +357,15 @@ namespace CallingBotSample.Bots
         {
             var userList = await _graph.LoadUserGraphAsync();
 
-            var user = userList.Where(x => x.DisplayName.Trim().ToLower().Contains(input) 
-            || x.GivenName.Trim().ToLower().Contains(input) 
+            var user = userList.Where(x => x.DisplayName.Trim().ToLower().Contains(input)
+            || x.GivenName.Trim().ToLower().Contains(input)
             || x.Surname.Trim().ToLower().Contains(input)).FirstOrDefault();
 
-            if(user == null)
+            if (user == null)
             {
-                //Speech - Konuþacak... kullanýcý bulunamadý. diyecek.
+                //Speech - KonuÃ¾acak... kullanÃ½cÃ½ bulunamadÃ½. diyecek.
 
-                //burayý konuþturamýyoruz....
+                //burayÃ½ konuÃ¾turamÃ½yoruz....
             }
 
             ///CALISMAYACAK
@@ -377,17 +376,33 @@ namespace CallingBotSample.Bots
                     //HTTP POST. HTTP GET
                     var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
 
-                    //1. Satýr POST örnek (Insert örneði)
-                    string officeNameTest = "XYZ Corp.";
-                    //Ofis kaydettim.
+                    #region 1.  SatÄ±r POST Ã¶rnek (Insert Ã¶rneÃ°i)
+                    //string officeNameTest = "XYZ Corp.";
+                    // await CreateOffice(officeNameTest);
+                    #endregion
 
-                    //2. Satýr GET örnek :
-                    string officeNameTestText = "ABC Corp.";
-                    //Result : Ofis bulunamadý.
+                    #region 2. SatÄ±r GET By Name Ã¶rnek :
+                    //string officeNameTestText = "ABC Corp.";
+                    //var offices = await GetOfficeByName(officeNameTestText);
+                    //if (offices.Count == 0)
+                    //{
+                    //    //Result : Ofis bulunamadÃ½.
+                    //}
+                    #endregion
 
-                    //3. Satýr GET örnek :
-                    // XYZ 1. satýr örnek sorgusu
-                    //Result : Ofis bulundu. Ofisin adý dönsün. veya tüm objeyi dönsün. hiç önemli deðil.
+                    #region 3. SatÄ±r GET By Id Ã¶rnek :
+                    //3. SatÃ½r GET Ã¶rnek :
+                    //  var office = GetOfficeById("Test:8c91fbed-16cf-4898-be0f-2c212bae245c");
+                    //Result : Ofis bulundu. Ofisin adÃ½ dÃ¶nsÃ¼n. veya tÃ¼m objeyi dÃ¶nsÃ¼n. hiÃ§ Ã¶nemli deÃ°il.
+                    #endregion
+
+                    #region 4. SatÄ±r delete Ã¶rnek :
+                    //  await DeleteOffice("Test:8c91fbed-16cf-4898-be0f-2c212bae245c");
+                    #endregion
+
+                    #region 4. SatÄ±r Update Ã¶rnek :
+                    await UpdateOffice("Test:8c91fbed-16cf-4898-be0f-2c212bae245c");
+                    #endregion
 
                     break;
 
@@ -528,8 +543,8 @@ namespace CallingBotSample.Bots
 
             // Create SSML document.
             var xmlMessage = string.Format(
-                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>" + 
-                    "<voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice>" + 
+                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>" +
+                    "<voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice>" +
                 "</speak>", message);
 
             using (HttpClient client = new HttpClient())
@@ -538,28 +553,28 @@ namespace CallingBotSample.Bots
                 {
                     // Set the HTTP method
                     request.Method = HttpMethod.Post;
-                    
+
                     // Construct the URI
                     request.RequestUri = new Uri(host);
 
                     // Set the content type header
                     request.Content = new StringContent(xmlMessage, Encoding.UTF8, "application/ssml+xml");
-                    
+
                     // Set additional header, such as Authorization and User-Agent
                     request.Headers.Add("Authorization", "Bearer " + accessToken);
                     request.Headers.Add("Connection", "Keep-Alive");
-                    
+
                     // Update your resource name
                     request.Headers.Add("User-Agent", "CallingBotSample");
-                    
+
                     // Audio output format. See API reference for full list.
                     request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
-                    
+
                     // Create a request
                     using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
                     {
                         response.EnsureSuccessStatusCode();
-                        
+
                         // Asynchronously read the response
                         using (Stream dataStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                         {
@@ -618,7 +633,7 @@ namespace CallingBotSample.Bots
                 if (antecedent.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
                 {
                     await Task.Delay(5000);
-                    
+
                     var resultPrompt = await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
                        prompts: new List<Microsoft.Graph.Prompt>()
                        {
@@ -644,6 +659,167 @@ namespace CallingBotSample.Bots
           );
 
         }
+
+        //Create Office
+        private async Task CreateOffice(string officeName)
+        {
+
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                using (HttpRequestMessage request = new HttpRequestMessage())
+                {
+                    // Set the HTTP method
+                    request.Method = HttpMethod.Post;
+
+                    // Construct the URI
+                    request.RequestUri = new Uri(apiManagementBaseUrl + "/Office");
+                    var office = new Office()
+                    {
+                        Name = officeName,
+                        Address = "Test Address",
+                        TelephoneNumber = "05455445544",
+                        GreetingCopy = "Test"
+
+                    };
+                    var data = JsonConvert.SerializeObject(office);
+
+                    // Set the content type header
+                    request.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+                    // Set additional header, such as Authorization and User-Agent
+                    //request.Headers.Add("Authorization", "Bearer " + accessToken);
+                    //request.Headers.Add("Connection", "Keep-Alive");
+
+
+                    // Audio output format. See API reference for full list.
+                    // request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
+
+                    // Create a request
+                    using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
+                    {
+                        response.EnsureSuccessStatusCode();
+                    }
+                }
+            }
+        }
+
+        private async Task<List<Office>> GetOfficeByName(string officeName)
+        {
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                UriBuilder builder = new UriBuilder(apiManagementBaseUrl + "/Office/GetByOfficeName");
+                builder.Query = $@"officeName='{officeName}'";
+                // Create a request
+                using (HttpResponseMessage response = await client.GetAsync(builder.Uri).ConfigureAwait(false))
+                {
+                    var data = await response.Content.ReadAsStringAsync();
+
+                    var office = JsonConvert.DeserializeObject<List<Office>>(data);
+                    return office;
+                }
+            }
+        }
+        private async Task<Office> GetOfficeById(string id)
+        {
+
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                try
+                {
+                    var uri = new Uri(apiManagementBaseUrl + "/Office/" + id);
+                    // Create a request
+                    using (HttpResponseMessage response = await client.GetAsync(uri).ConfigureAwait(false))
+                    {
+                        var data = await response.Content.ReadAsStringAsync();
+
+                        var office = JsonConvert.DeserializeObject<Office>(data);
+                        return office;
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    throw ex;
+                }
+
+            }
+        }
+
+        private async Task DeleteOffice(string id)
+        {
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                using (HttpRequestMessage request = new HttpRequestMessage())
+                {
+                    // Set the HTTP method
+                    request.Method = HttpMethod.Delete;
+
+                    // Construct the URI
+                    request.RequestUri = new Uri(apiManagementBaseUrl + "/Office/" + id);
+
+                    // Set additional header, such as Authorization and User-Agent
+                    //request.Headers.Add("Authorization", "Bearer " + accessToken);
+                    //request.Headers.Add("Connection", "Keep-Alive");
+
+                    // Audio output format. See API reference for full list.
+                    // request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
+
+                    // Create a request
+                    using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
+                    {
+                        response.EnsureSuccessStatusCode();
+                    }
+                }
+            }
+        }
+
+        private async Task UpdateOffice(string id)
+        {
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                using (HttpRequestMessage request = new HttpRequestMessage())
+                {
+                    // Set the HTTP method
+                    request.Method = HttpMethod.Put;
+
+                    // Construct the URI
+                    request.RequestUri = new Uri(apiManagementBaseUrl + "/Office/" + id);
+                    var office = new Office()
+                    {
+                        Id=id,
+                        Name = "Test",
+                        Address = "Test Address Update",
+                        TelephoneNumber = "05455445544",
+                        GreetingCopy = "Test"
+
+                    };
+                    var data = JsonConvert.SerializeObject(office);
+
+                    // Set the content type header
+                    request.Content = new StringContent(data, Encoding.UTF8, "application/json");
+
+                    // Set additional header, such as Authorization and User-Agent
+                    //request.Headers.Add("Authorization", "Bearer " + accessToken);
+                    //request.Headers.Add("Connection", "Keep-Alive");
+
+
+                    // Audio output format. See API reference for full list.
+                    // request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
+
+                    // Create a request
+                    using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
+                    {
+                        response.EnsureSuccessStatusCode();
+                    }
+                }
+            }
+        }
+
     }
 }
 
