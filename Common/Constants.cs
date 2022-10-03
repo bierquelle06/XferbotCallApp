@@ -30,5 +30,7 @@ namespace CallingBotSample.Common
         public const string MicrosoftAppIdConfigurationSettingsKey = "MicrosoftAppId";
 
         public const string BotBaseUrlConfigurationSettingsKey = "BotBaseUrl";
+
+        public const string XferBotApiManagementBaseUrlKey = "XferBotApiManagementBaseUrl";
     }
 }

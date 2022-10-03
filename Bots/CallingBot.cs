@@ -103,7 +103,6 @@ namespace CallingBotSample.Bots
 
             builder.SetAuthenticationProvider(this._authenticationProvider);
             builder.SetNotificationUrl(options.PlaceCallEndpointUrl);
-            //builder.SetMediaPlatformSettings(_azureSettings.MediaPlatformSettings);
             builder.SetServiceBaseUrl(options.BotBaseUrl);
 
             //this._client = builder.Build();
@@ -376,6 +375,7 @@ namespace CallingBotSample.Bots
                 case "callapi":
 
                     //HTTP POST. HTTP GET
+                    var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
 
                     //1. Satýr POST örnek (Insert örneði)
                     string officeNameTest = "XYZ Corp.";
