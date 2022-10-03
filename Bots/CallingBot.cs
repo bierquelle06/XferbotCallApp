@@ -373,6 +373,24 @@ namespace CallingBotSample.Bots
             ///CALISMAYACAK
             switch (input)
             {
+                case "callapi":
+
+                    //HTTP POST. HTTP GET
+
+                    //1. Satýr POST örnek (Insert örneði)
+                    string officeNameTest = "XYZ Corp.";
+                    //Ofis kaydettim.
+
+                    //2. Satýr GET örnek :
+                    string officeNameTestText = "ABC Corp.";
+                    //Result : Ofis bulunamadý.
+
+                    //3. Satýr GET örnek :
+                    // XYZ 1. satýr örnek sorgusu
+                    //Result : Ofis bulundu. Ofisin adý dönsün. veya tüm objeyi dönsün. hiç önemli deðil.
+
+                    break;
+
                 case "generatefile":
 
                     //var localFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
