@@ -16,9 +16,12 @@ using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph.Communications.Common.Telemetry;
+using System.IO;
+using System.Reflection;
 
 namespace CallingBotSample
 {
@@ -40,6 +43,12 @@ namespace CallingBotSample
         {
             services.AddControllers().AddNewtonsoftJson();
             services.AddOptions();
+
+            IFileProvider physicalProvider = new PhysicalFileProvider(Directory.GetCurrentDirectory());
+            IFileProvider embeddedProvider = new EmbeddedFileProvider(Assembly.GetEntryAssembly());
+            IFileProvider compositeProvider = new CompositeFileProvider(physicalProvider, embeddedProvider);
+
+            services.AddSingleton<IFileProvider>(compositeProvider);
 
             services.AddSingleton<IGraphLogger>(this.logger);
 
