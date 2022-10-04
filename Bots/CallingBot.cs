@@ -44,7 +44,7 @@ namespace CallingBotSample.Bots
     public class CallingBot : ActivityHandler
     {
         private readonly IConfiguration _configuration;
-        
+
         private readonly IHub _sentryHub;
         private IRequestAuthenticationProvider _authenticationProvider { get; }
 
@@ -78,11 +78,11 @@ namespace CallingBotSample.Bots
 
         public CallingBot(BotOptions options,
             IFileProvider fileProvider,
-            IConfiguration configuration, 
-            ICard card, 
-            IGraph graph, 
-            IGraphServiceClient graphServiceClient, 
-            ConversationState conversationState, 
+            IConfiguration configuration,
+            ICard card,
+            IGraph graph,
+            IGraphServiceClient graphServiceClient,
+            ConversationState conversationState,
             UserState userState,
             IHub sentryHub)
         {
@@ -98,7 +98,7 @@ namespace CallingBotSample.Bots
             this._graph = graph;
 
             this._graphServiceClient = graphServiceClient;
-            
+
             var name = this.GetType().Assembly.GetName().Name;
 
             var builder = new CommunicationsClientBuilder(name, options.AppId);
@@ -303,7 +303,7 @@ namespace CallingBotSample.Bots
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
             var credentials = new MicrosoftAppCredentials(
-                this._configuration[Common.Constants.MicrosoftAppIdConfigurationSettingsKey], 
+                this._configuration[Common.Constants.MicrosoftAppIdConfigurationSettingsKey],
                 this._configuration[Common.Constants.MicrosoftAppPasswordConfigurationSettingsKey]);
 
             ConversationReference conversationReference = null;
@@ -366,11 +366,11 @@ namespace CallingBotSample.Bots
         {
             var userList = await _graph.LoadUserGraphAsync();
 
-            var user = userList.Where(x => x.DisplayName.Trim().ToLower().Contains(input) 
-            || x.GivenName.Trim().ToLower().Contains(input) 
+            var user = userList.Where(x => x.DisplayName.Trim().ToLower().Contains(input)
+            || x.GivenName.Trim().ToLower().Contains(input)
             || x.Surname.Trim().ToLower().Contains(input)).FirstOrDefault();
 
-            if(user == null)
+            if (user == null)
             {
                 //Speech - Konuþacak... kullanýcý bulunamadý. diyecek.
 
@@ -382,12 +382,10 @@ namespace CallingBotSample.Bots
             {
                 case "apitest":
 
-                    var resultOffice = await GetOfficeByName("ABC Corp.");
+                    var officeInfo = await GetOfficeByName("ABC Corp.");
 
-                    if(resultOffice.Count > 0)
+                    if (officeInfo != null)
                     {
-                        var officeInfo = resultOffice.FirstOrDefault();
-
                         await turnContext.SendActivityAsync("Office Founded.");
                         await turnContext.SendActivityAsync("Office Info. => Name : " + officeInfo.Name + " Address : " + officeInfo.Address);
                     }
@@ -494,22 +492,32 @@ namespace CallingBotSample.Bots
             }
         }
 
-        private async Task<List<Office>> GetOfficeByName(string officeName)
+        private async Task<Office> GetOfficeByName(string officeName)
         {
-            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
-            using (HttpClient client = new HttpClient())
-            {
-                UriBuilder builder = new UriBuilder(apiManagementBaseUrl + "/Office/GetByOfficeName");
-                builder.Query = $@"officeName='{officeName}'";
-                // Create a request
-                using (HttpResponseMessage response = await client.GetAsync(builder.Uri).ConfigureAwait(false))
-                {
-                    var data = await response.Content.ReadAsStringAsync();
+            var office = new Office();
 
-                    var office = JsonConvert.DeserializeObject<List<Office>>(data);
-                    return office;
+            try
+            {
+                var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+                using (HttpClient client = new HttpClient())
+                {
+                    UriBuilder builder = new UriBuilder(apiManagementBaseUrl + "/Office/GetByOfficeName");
+                    builder.Query = $@"officeName='{officeName}'";
+                    // Create a request
+                    using (HttpResponseMessage response = await client.GetAsync(builder.Uri).ConfigureAwait(false))
+                    {
+                        var data = await response.Content.ReadAsStringAsync();
+
+                        office = JsonConvert.DeserializeObject<Office>(data);
+                    }
                 }
             }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            return office;
         }
 
         private void NotificationProcessor_OnNotificationReceived(NotificationEventArgs args)
@@ -543,9 +551,9 @@ namespace CallingBotSample.Bots
             // Create SSML document.
             var xmlMessage = string.Format(
                 "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
-                    "<voice name='en-US-JennyNeural'>" + 
+                    "<voice name='en-US-JennyNeural'>" +
                         "<prosody rate='0%' pitch='0%'>{0}</prosody>" +
-                    "</voice>" + 
+                    "</voice>" +
                 "</speak>", message);
 
             using (HttpClient client = new HttpClient())
@@ -554,28 +562,28 @@ namespace CallingBotSample.Bots
                 {
                     // Set the HTTP method
                     request.Method = HttpMethod.Post;
-                    
+
                     // Construct the URI
                     request.RequestUri = new Uri(host);
 
                     // Set the content type header
                     request.Content = new StringContent(xmlMessage, Encoding.UTF8, "application/ssml+xml");
-                    
+
                     // Set additional header, such as Authorization and User-Agent
                     request.Headers.Add("Authorization", "Bearer " + accessToken);
                     request.Headers.Add("Connection", "Keep-Alive");
-                    
+
                     // Update your resource name
                     request.Headers.Add("User-Agent", "CallingBotSample");
-                    
+
                     // Audio output format. See API reference for full list.
                     request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
-                    
+
                     // Create a request
                     using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
                     {
                         response.EnsureSuccessStatusCode();
-                        
+
                         // Asynchronously read the response
                         using (Stream dataStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                         {
@@ -634,7 +642,7 @@ namespace CallingBotSample.Bots
                 if (antecedent.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
                 {
                     await Task.Delay(5000);
-                    
+
                     var resultPrompt = await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
                        prompts: new List<Microsoft.Graph.Prompt>()
                        {
