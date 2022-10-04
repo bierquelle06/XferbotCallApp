@@ -21,6 +21,8 @@ using Microsoft.Graph.Communications.Common.Telemetry;
 using Microsoft.Graph.Communications.Core.Notifications;
 using Microsoft.Graph.Communications.Core.Serialization;
 using Microsoft.Skype.Bots.Media;
+using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
 using Sentry;
 using System;
 using System.Collections.Concurrent;
@@ -33,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.Extensions.FileProviders;
 
 namespace CallingBotSample.Bots
 {
@@ -52,6 +55,8 @@ namespace CallingBotSample.Bots
         private readonly IGraph _graph;
         private readonly IGraphServiceClient _graphServiceClient;
 
+        private readonly IFileProvider _fileProvider;
+
         public ConcurrentDictionary<string, CallHandler> CallHandlers { get; } = new ConcurrentDictionary<string, CallHandler>();
 
         /// <summary>
@@ -69,7 +74,8 @@ namespace CallingBotSample.Bots
             this._client = null;
         }
 
-        public CallingBot(BotOptions options, 
+        public CallingBot(BotOptions options,
+            IFileProvider fileProvider,
             IConfiguration configuration, 
             ICard card, 
             IGraph graph, 
@@ -82,6 +88,7 @@ namespace CallingBotSample.Bots
             this._userState = userState;
             this._sentryHub = sentryHub;
 
+            this._fileProvider = fileProvider;
             this._botOptions = options;
             this._configuration = configuration;
 
@@ -291,7 +298,6 @@ namespace CallingBotSample.Bots
             }
         }
 
-
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
             var credentials = new MicrosoftAppCredentials(
@@ -372,51 +378,19 @@ namespace CallingBotSample.Bots
             ///CALISMAYACAK
             switch (input)
             {
-                case "callapi":
+                case "deleteaudiofiles":
 
-                    //HTTP POST. HTTP GET
-                    var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+                    var files = this._fileProvider.GetDirectoryContents("wwwroot/audio");
 
-                    //1. Satýr POST örnek (Insert örneði)
-                    string officeNameTest = "XYZ Corp.";
-                    //Ofis kaydettim.
+                    var deletedFiles = files.Where(x => x.Name != "speech.wav");
 
-                    //2. Satýr GET örnek :
-                    string officeNameTestText = "ABC Corp.";
-                    //Result : Ofis bulunamadý.
+                    // Enumerate through the files here
+                    foreach (var deleteFileItem in deletedFiles)
+                    {
+                        System.IO.File.Delete(deleteFileItem.PhysicalPath);
 
-                    //3. Satýr GET örnek :
-                    // XYZ 1. satýr örnek sorgusu
-                    //Result : Ofis bulundu. Ofisin adý dönsün. veya tüm objeyi dönsün. hiç önemli deðil.
-
-                    break;
-
-                case "generatefile":
-
-                    //var localFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
-
-                    var localFile = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav");//"audio/4f3aeeba-2a2c-4001-aebf-c92101a9b31a.wav");
-
-                    //var fileMessage = MessageFactory.Text(localFile.ToString(), InputHints.IgnoringInput);
-                    //fileMessage.Attachments.Add(new Microsoft.Bot.Schema.Attachment
-                    //{
-                    //    Name = localFile.ToString(),
-                    //    ContentType = "audio/wav",
-                    //    ContentUrl = localFile.ToString()
-                    //});
-
-                    await turnContext.SendActivityAsync(localFile.ToString());
-
-                    //var sb = new StringBuilder();
-
-                    //var ttsMedia = new MediaInfo
-                    //{
-                    //    Uri = new Uri(this._botOptions.BotBaseUrl, localFile).ToString(),
-                    //    ResourceId = Guid.NewGuid().ToString(),
-                    //};
-                    //var ttsMediaPrompt = new MediaPrompt() { MediaInfo = ttsMedia, Loop = 1 };
-
-                    //await this.Call.PlayPromptAsync(new List<MediaPrompt> { ttsMediaPrompt }).ConfigureAwait(false);
+                        await turnContext.SendActivityAsync("Delete AUDIO File : " + deleteFileItem.Name);
+                    }
 
                     break;
 
@@ -426,6 +400,7 @@ namespace CallingBotSample.Bots
                         "<speak version=\"1.0\" xmlns=\"https://www.w3.org/2001/10/synthesis\" xmlns:mstts=\"https://www.w3.org/2001/mstts\" xml:lang=\"en-US\">" +
                         "<voice name=\"en-US-JennyNeural\">Hello World</voice>" +
                         "</speak>");
+
                     await turnContext.SendActivityAsync(msg);
 
                     break;
@@ -468,6 +443,7 @@ namespace CallingBotSample.Bots
                     break;
 
                 case "joinscheduledmeeting":
+
                     var onlineMeeting = await this._graph.CreateOnlineMeetingAsync();
                     if (onlineMeeting != null)
                     {
@@ -480,6 +456,7 @@ namespace CallingBotSample.Bots
                     break;
 
                 case "inviteparticipant":
+
                     var meeting = await this._graph.CreateOnlineMeetingAsync();
                     if (meeting != null)
                     {
@@ -528,8 +505,10 @@ namespace CallingBotSample.Bots
 
             // Create SSML document.
             var xmlMessage = string.Format(
-                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='en-US'>" + 
-                    "<voice xml:lang='en-US' name='en-US-JennyNeural'>{0}</voice>" + 
+                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
+                    "<voice name='en-US-JennyNeural'>" + 
+                        "<prosody rate='0%' pitch='0%'>{0}</prosody>" +
+                    "</voice>" + 
                 "</speak>", message);
 
             using (HttpClient client = new HttpClient())
@@ -587,14 +566,14 @@ namespace CallingBotSample.Bots
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
             //Greeting Coy Voice
-            //var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
+            var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
-            //_sentryHub.CaptureMessage("File : " + greetingCopyVoiceFile);
+            _sentryHub.CaptureMessage("BotAnswerIncomingCall : File :: " + greetingCopyVoiceFile);
 
             //Voice File
-            var uriFile = new Uri(this._botOptions.BotBaseUrl, "audio/speech.wav");//4f3aeeba-2a2c-4001-aebf-c92101a9b31a.wav");
+            var uriFile = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile);
 
-            _sentryHub.CaptureMessage("File Uri : " + uriFile.ToString());
+            _sentryHub.CaptureMessage("BotAnswerIncomingCall : File Uri : " + uriFile.ToString());
 
             Task answerTask = Task.Run(async () =>
                                 await this._graphServiceClient.Communications.Calls[callId].Answer(
@@ -631,14 +610,6 @@ namespace CallingBotSample.Bots
                                  }
                              }
                        }).Request().PostAsync();
-
-                    //Completed then delete
-                    //if (resultPrompt.Status == OperationStatus.Completed)
-                    //{
-                    //    _sentryHub.CaptureMessage("Delete File : " + uriFile.AbsolutePath);
-
-                    //    //System.IO.File.Delete(Path.GetFileName(uriFile.AbsolutePath));
-                    //}
                 }
             }
           );
