@@ -382,7 +382,7 @@ namespace CallingBotSample.Bots
             {
                 case "apitest":
 
-                    var officeInfo = await GetOfficeByName("ABC Corp.");
+                    var officeInfo = await GetOfficeByName("Test");
 
                     if (officeInfo != null)
                     {
@@ -502,7 +502,7 @@ namespace CallingBotSample.Bots
                 using (HttpClient client = new HttpClient())
                 {
                     UriBuilder builder = new UriBuilder(apiManagementBaseUrl + "/Office/GetByOfficeName");
-                    builder.Query = $@"officeName='{officeName}'";
+                    builder.Query = $@"officeName={officeName}";
                     // Create a request
                     using (HttpResponseMessage response = await client.GetAsync(builder.Uri).ConfigureAwait(false))
                     {
