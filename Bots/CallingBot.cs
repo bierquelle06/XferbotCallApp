@@ -36,6 +36,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Microsoft.Extensions.FileProviders;
+using CallingBotSample.Configuration;
+using Newtonsoft.Json;
 
 namespace CallingBotSample.Bots
 {
@@ -378,6 +380,20 @@ namespace CallingBotSample.Bots
             ///CALISMAYACAK
             switch (input)
             {
+                case "apitest":
+
+                    var resultOffice = await GetOfficeByName("ABC Corp.");
+
+                    if(resultOffice.Count > 0)
+                    {
+                        var officeInfo = resultOffice.FirstOrDefault();
+
+                        await turnContext.SendActivityAsync("Office Founded.");
+                        await turnContext.SendActivityAsync("Office Info. => Name : " + officeInfo.Name + " Address : " + officeInfo.Address);
+                    }
+
+                    break;
+
                 case "deleteaudiofiles":
 
                     var files = this._fileProvider.GetDirectoryContents("wwwroot/audio");
@@ -396,10 +412,14 @@ namespace CallingBotSample.Bots
 
                 case "talk":
 
-                    var msg = MessageFactory.Text($"Echo: TALK",
-                        "<speak version=\"1.0\" xmlns=\"https://www.w3.org/2001/10/synthesis\" xmlns:mstts=\"https://www.w3.org/2001/mstts\" xml:lang=\"en-US\">" +
-                        "<voice name=\"en-US-JennyNeural\">Hello World</voice>" +
-                        "</speak>");
+                    var xmlMessage = string.Format(
+                        "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
+                            "<voice name='en-US-JennyNeural'>" +
+                                "<prosody rate='0%' pitch='0%'>{0}</prosody>" +
+                            "</voice>" +
+                        "</speak>", "Hello World");
+
+                    var msg = MessageFactory.Text($"Echo: TALK", xmlMessage);
 
                     await turnContext.SendActivityAsync(msg);
 
@@ -474,6 +494,23 @@ namespace CallingBotSample.Bots
             }
         }
 
+        private async Task<List<Office>> GetOfficeByName(string officeName)
+        {
+            var apiManagementBaseUrl = this._configuration[Common.Constants.XferBotApiManagementBaseUrlKey];
+            using (HttpClient client = new HttpClient())
+            {
+                UriBuilder builder = new UriBuilder(apiManagementBaseUrl + "/Office/GetByOfficeName");
+                builder.Query = $@"officeName='{officeName}'";
+                // Create a request
+                using (HttpResponseMessage response = await client.GetAsync(builder.Uri).ConfigureAwait(false))
+                {
+                    var data = await response.Content.ReadAsStringAsync();
+
+                    var office = JsonConvert.DeserializeObject<List<Office>>(data);
+                    return office;
+                }
+            }
+        }
 
         private void NotificationProcessor_OnNotificationReceived(NotificationEventArgs args)
         {
