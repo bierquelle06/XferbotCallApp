@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+ï»¿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+using CallingBotSample.Configuration;
 using CallingBotSample.Interfaces;
 using CallingBotSample.Utility;
 using CallingMeetingBot.Extenstions;
@@ -10,19 +11,18 @@ using Microsoft.Bot.Builder.Teams;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Communications.Calls;
 using Microsoft.Graph.Communications.Calls.Media;
 using Microsoft.Graph.Communications.Client;
 using Microsoft.Graph.Communications.Client.Authentication;
 using Microsoft.Graph.Communications.Common;
-using Microsoft.Graph.Communications.Common.Telemetry;
 using Microsoft.Graph.Communications.Core.Notifications;
 using Microsoft.Graph.Communications.Core.Serialization;
 using Microsoft.Skype.Bots.Media;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
+using Newtonsoft.Json;
 using Sentry;
 using System;
 using System.Collections.Concurrent;
@@ -372,9 +372,9 @@ namespace CallingBotSample.Bots
 
             if (user == null)
             {
-                //Speech - Konuþacak... kullanýcý bulunamadý. diyecek.
+                //Speech - Konuï¿½acak... kullanï¿½cï¿½ bulunamadï¿½. diyecek.
 
-                //burayý konuþturamýyoruz....
+                //burayï¿½ konuï¿½turamï¿½yoruz....
             }
 
             ///CALISMAYACAK
@@ -660,6 +660,7 @@ namespace CallingBotSample.Bots
           );
 
         }
+
     }
 }
 
