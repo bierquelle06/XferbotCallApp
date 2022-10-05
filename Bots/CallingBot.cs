@@ -540,7 +540,7 @@ namespace CallingBotSample.Bots
 
         }
 
-        private async Task<string> GenerateTextToSpeechFile(string message)
+        private async Task<Tuple<string, string>> GenerateTextToSpeechFile(string message)
         {
             var filename = Guid.NewGuid();
 
@@ -597,7 +597,7 @@ namespace CallingBotSample.Bots
                 }
             }
 
-            return "audio/" + filename + ".wav";
+            return new Tuple<string, string>("audio/" + filename + ".wav", filename + ".wav");
         }
 
         private async Task<string> GetAccessToken(string subscriptionKey)
@@ -610,13 +610,18 @@ namespace CallingBotSample.Bots
 
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
+            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : callId :: " + callId);
+
             //Greeting Coy Voice
             var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
 
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : File :: " + greetingCopyVoiceFile);
+            var filePath = greetingCopyVoiceFile.Item1;
+            var file = greetingCopyVoiceFile.Item2;
+
+            _sentryHub.CaptureMessage("BotAnswerIncomingCall : File :: " + filePath);
 
             //Voice File
-            var uriFile = new Uri(this._botOptions.BotBaseUrl, greetingCopyVoiceFile);
+            var uriFile = new Uri(this._botOptions.BotBaseUrl, filePath);
 
             _sentryHub.CaptureMessage("BotAnswerIncomingCall : File Uri : " + uriFile.ToString());
 
@@ -655,10 +660,33 @@ namespace CallingBotSample.Bots
                                  }
                              }
                        }).Request().PostAsync();
+
+                    if(resultPrompt.Status == OperationStatus.Completed)
+                    {
+                        DeleteLocalFile(file);
+                    }
                 }
             }
           );
 
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="file"></param>
+        private void DeleteLocalFile(string file)
+        {
+            var files = this._fileProvider.GetDirectoryContents("wwwroot/audio");
+
+            var deletedFile = files.Where(x => x.Name == file).FirstOrDefault();
+
+            if(deletedFile != null)
+            {
+                _sentryHub.CaptureMessage("DeleteLocalFile : File Name :: " + deletedFile.Name);
+
+                System.IO.File.Delete(deletedFile.PhysicalPath);
+            }
         }
     }
 }
