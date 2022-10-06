@@ -22,17 +22,12 @@ namespace CallingBotSample.Utility
             try
             {
                 await task.ConfigureAwait(false);
-
-                sentryHub.CaptureMessage($"Completed running task successfully: {description ?? string.Empty}" +
-                    $"memberName: {memberName}" +
-                    $"filePath: {filePath}" +
-                    $"lineNumber: {lineNumber}");
             }
             catch (Exception ex)
             {
                 sentryHub.CaptureException(ex);
 
-                sentryHub.CaptureMessage($"Completed running task successfully: {description ?? string.Empty}" +
+                sentryHub.CaptureMessage($"Completed running task fail: {description ?? string.Empty}" +
                    $"memberName: {memberName}" +
                    $"filePath: {filePath}" +
                    $"lineNumber: {lineNumber}");
