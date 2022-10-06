@@ -1,9 +1,10 @@
 {
   "$schema": "https://github.com/OfficeDev/microsoft-teams-app-schema/blob/preview/DevPreview/MicrosoftTeams.schema.json",
-  "manifestVersion": "devPreview",
+  "manifestVersion": "preproduct",
   "version": "1.0.0",
   "id": "eed353af-f32a-4c42-b708-3aa2e3bde264",
   "packageName": "com.acs.sample",
+  "devicePermissions": [ "geolocation", "media", "notifications", "midi", "openExternal" ],
   "developer": {
     "name": "Contoso",
     "websiteUrl": "https://example.azurewebsites.net",
@@ -15,24 +16,34 @@
     "outline": "outline.png"
   },
   "name": {
-    "short": "Calling bot",
-    "full": "Calling bot"
+    "short": "Teams Calling bot",
+    "full": "Teams Calling bot"
   },
   "description": {
-    "short": "Calling bot",
-    "full": "Calling bot"
+    "short": "Teams Calling bot",
+    "full": "Teams Calling bot"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "OnlineMeetingParticipant.ToggleIncomingAudio.Chat",
+          "type": "Delegated"
+        }
+      ]
+    }
   },
   "accentColor": "#FFFFFF",
   "bots": [
     {
       "botId": "eed353af-f32a-4c42-b708-3aa2e3bde264",
       "scopes": [ "personal", "team", "groupchat" ],
-      "supportsFiles": false,
+      "supportsFiles": true,
       "isNotificationOnly": false,
       "supportsCalling": true,
       "supportsVideo": true
     }
   ],
   "permissions": [ "identity", "messageTeamMembers" ],
-  "validDomains": [ "f8d3-78-167-7-28.eu.ngrok.io" ]
+  "validDomains": [ "f8d3-78-167-7-28.eu.ngrok.io", "xferbotapiservice.azurewebsites.net" ]
 }

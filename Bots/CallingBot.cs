@@ -364,6 +364,8 @@ namespace CallingBotSample.Bots
 
         private async Task SendReponse(ITurnContext<IMessageActivity> turnContext, string input, CancellationToken cancellationToken)
         {
+            input = CommonUtils.RemoveNonAlphaNumeric(input);
+
             var userList = await _graph.LoadUserGraphAsync();
 
             var user = userList.Where(x => x.DisplayName.Trim().ToLower().Contains(input)
@@ -372,6 +374,9 @@ namespace CallingBotSample.Bots
 
             if (user == null)
             {
+                await turnContext.SendActivityAsync("Sorry, i can't find any user.");
+
+                //return;
                 //Speech - Konuþacak... kullanýcý bulunamadý. diyecek.
 
                 //burayý konuþturamýyoruz....
@@ -409,6 +414,11 @@ namespace CallingBotSample.Bots
                     break;
 
                 case "talk":
+
+                    var textToSpeechSdkResult = await SynthesizeAudioAsync("Hello Valentina, How Are you ?");
+
+                    await turnContext.SendActivityAsync("SynthesizeAudioAsync filePath (1) : " + textToSpeechSdkResult.Item1);
+                    await turnContext.SendActivityAsync("SynthesizeAudioAsync file (2) : " + textToSpeechSdkResult.Item2);
 
                     var xmlMessage = string.Format(
                         "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
@@ -540,83 +550,51 @@ namespace CallingBotSample.Bots
 
         }
 
-        private async Task<Tuple<string, string>> GenerateTextToSpeechFile(string message)
+        private async Task<Tuple<string, string>> SynthesizeAudioAsync(string text)
         {
             var filename = Guid.NewGuid();
 
-            var accessToken = await GetAccessToken(this._botOptions.SpeechSubscriptionKey);
+            var speechConfig = SpeechConfig.FromSubscription(this._botOptions.SpeechSubscriptionKey, this._botOptions.SpeechRegion);
+            speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm);
 
-            string host = "https://westus.tts.speech.microsoft.com/cognitiveservices/v1";
+            using var synthesizer = new SpeechSynthesizer(speechConfig, null);
+            var result = await synthesizer.SpeakTextAsync(text).ConfigureAwait(false);
 
-            // Create SSML document.
-            var xmlMessage = string.Format(
-                "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
-                    "<voice name='en-US-JennyNeural'>" +
-                        "<prosody rate='0%' pitch='0%'>{0}</prosody>" +
-                    "</voice>" +
-                "</speak>", message);
-
-            using (HttpClient client = new HttpClient())
-            {
-                using (HttpRequestMessage request = new HttpRequestMessage())
-                {
-                    // Set the HTTP method
-                    request.Method = HttpMethod.Post;
-
-                    // Construct the URI
-                    request.RequestUri = new Uri(host);
-
-                    // Set the content type header
-                    request.Content = new StringContent(xmlMessage, Encoding.UTF8, "application/ssml+xml");
-
-                    // Set additional header, such as Authorization and User-Agent
-                    request.Headers.Add("Authorization", "Bearer " + accessToken);
-                    request.Headers.Add("Connection", "Keep-Alive");
-
-                    // Update your resource name
-                    request.Headers.Add("User-Agent", "CallingBotSample");
-
-                    // Audio output format. See API reference for full list.
-                    request.Headers.Add("X-Microsoft-OutputFormat", "riff-24khz-16bit-mono-pcm");
-
-                    // Create a request
-                    using (HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false))
-                    {
-                        response.EnsureSuccessStatusCode();
-
-                        // Asynchronously read the response
-                        using (Stream dataStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                        {
-                            using (FileStream fileStream = new FileStream(@"wwwroot/audio/" + filename + ".wav", FileMode.Create, FileAccess.Write, FileShare.Write))
-                            {
-                                await dataStream.CopyToAsync(fileStream).ConfigureAwait(false);
-                                fileStream.Close();
-                            }
-                        }
-                    }
-                }
-            }
+            using var stream = AudioDataStream.FromResult(result);
+            await stream.SaveToWaveFileAsync(@"wwwroot/audio/" + filename + ".wav").ConfigureAwait(false);
 
             return new Tuple<string, string>("audio/" + filename + ".wav", filename + ".wav");
         }
 
-        private async Task<string> GetAccessToken(string subscriptionKey)
-        {
-            HttpClient client = new HttpClient();
-            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", subscriptionKey);
-            var response = await client.PostAsync("https://westus.api.cognitive.microsoft.com/sts/v1.0/issuetoken", null);
-            return await response.Content.ReadAsStringAsync();
-        }
-
+        
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId)
         {
             _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : callId :: " + callId);
 
-            //Greeting Coy Voice
-            var greetingCopyVoiceFile = await GenerateTextToSpeechFile("Welcome to XFERBOT");
+            var userList = await _graph.LoadUserGraphAsync();
 
-            var filePath = greetingCopyVoiceFile.Item1;
-            var file = greetingCopyVoiceFile.Item2;
+            var caller = userList.Where(x => x.Id == callId).FirstOrDefault();
+
+            _sentryHub.CaptureMessage("BotAnswerIncomingCall : Caller OfficeLocation :: " + caller.OfficeLocation ?? "");
+
+            var officeInfo = await GetOfficeByName(caller.OfficeLocation);
+
+            Tuple<string, string> voiceFileResult = new Tuple<string, string>("", "");
+            if (officeInfo == null)
+            {
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : officeInfo :: NULL");
+
+                voiceFileResult = await SynthesizeAudioAsync("Sorry, we don't know your Office Information.");
+            }
+            else
+            {
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : officeInfo :: " + officeInfo.GreetingCopy);
+
+                voiceFileResult = await SynthesizeAudioAsync(officeInfo.GreetingCopy);
+            }
+
+            var filePath = voiceFileResult.Item1;
+            var file = voiceFileResult.Item2;
 
             _sentryHub.CaptureMessage("BotAnswerIncomingCall : File :: " + filePath);
 

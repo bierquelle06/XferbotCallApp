@@ -15,6 +15,7 @@ namespace CallingBotSample.Helpers
     using System.Threading.Tasks;
     using CallingBotSample.Configuration;
     using CallingBotSample.Interfaces;
+    using CallingBotSample.Utility;
     using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
@@ -62,12 +63,12 @@ namespace CallingBotSample.Helpers
                     result.Add(new Configuration.User()
                     {
                         Id = graphItem.Id,
-                        DisplayName = graphItem.DisplayName ?? "",
-                        GivenName = graphItem.GivenName ?? "",
+                        DisplayName = CommonUtils.RemoveNonAlphaNumeric(graphItem.DisplayName ?? ""),
+                        GivenName = CommonUtils.RemoveNonAlphaNumeric(graphItem.GivenName ?? ""),
                         Language = graphItem.PreferredLanguage ?? "en-US",
                         MobilePhone = graphItem.MobilePhone ?? "",
                         OfficeLocation = graphItem.OfficeLocation ?? "",
-                        Surname = graphItem.Surname ?? ""
+                        Surname = CommonUtils.RemoveNonAlphaNumeric(graphItem.Surname ?? "")
                     });
                 }
 

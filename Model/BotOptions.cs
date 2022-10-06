@@ -18,6 +18,11 @@ public class BotOptions
     public string SpeechSubscriptionKey { get; set; }
 
     /// <summary>
+    /// Speech Region
+    /// </summary>
+    public string SpeechRegion { get; set; }
+
+    /// <summary>
     /// Gets the calls uri of the application.
     /// </summary>
     public Uri BotBaseUrl { get; set; }
