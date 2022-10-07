@@ -586,6 +586,9 @@ namespace CallingBotSample.Bots
 
             _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (3) User List :: " + (userList.Count == 0 ? "User List count = 0" : "User List count > 0"));
 
+            //To-DO : Aykut AKTAS - "cdf647ad-eb33-4c34-9882-a863a88763b5"
+            // For test
+            // sourceUserId = "cdf647ad-eb33-4c34-9882-a863a88763b5";
             var caller = userList.Where(x => x.Id == sourceUserId).FirstOrDefault();
 
             _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (4) User List By CallerId :: " + (caller == null ? "Caller is null" : "Caller is not null"));
