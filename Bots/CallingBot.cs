@@ -526,7 +526,7 @@ namespace CallingBotSample.Bots
             catch (Exception)
             {
                 return null;
-            }
+            } 
 
             return office;
         }
@@ -545,11 +545,11 @@ namespace CallingBotSample.Bots
             if (args.ResourceData is Call call)
             {
                 if (args.ChangeType == ChangeType.Created && call.State == CallState.Incoming)
-                {
+                { 
                     this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : MyParticipantId :: {call.MyParticipantId}");
                     this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : CallChainId :: {call.CallChainId}");
 
-                    this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : UserId :: {call.Source.Identity.User.Id}");
+                    this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : UserId :: Test-UserId");
 
                     await this.BotAnswerIncomingCallAsync(call.Id, args.TenantId, args.ScenarioId, call.Source.Identity.User.Id).ConfigureAwait(false);
                 }
