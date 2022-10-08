@@ -33,9 +33,6 @@ namespace CallingMeetingBot.Controllers
         [HttpPost, HttpGet]
         public async Task HandleCallbackRequestAsync()
         {
-            var log = $"STEP 1 : HandleCallbackRequestAsync :: Received HTTP {this.Request.Method}, {this.Request.Path}";
-            this._sentryHub.CaptureMessage(message: log);
-
             //await _adapter.ProcessAsync(this.Request, this.Response, this._callingBot).ConfigureAwait(false);
             await this._callingBot.ProcessNotificationAsync(this.Request, this.Response).ConfigureAwait(false);
         }

@@ -119,8 +119,6 @@ namespace CallingBotSample.Utility
             const string authDomain = "https://api.aps.skype.com/v1/.well-known/OpenIdConfiguration";
             if (this.openIdConfiguration == null || DateTime.Now > this.prevOpenIdConfigUpdateTimestamp.Add(this.openIdConfigRefreshInterval))
             {
-                this.sentryHub.CaptureMessage("Updating OpenID configuration");
-
                 // Download the OIDC configuration which contains the JWKS
                 IConfigurationManager<OpenIdConnectConfiguration> configurationManager =
                     new ConfigurationManager<OpenIdConnectConfiguration>(

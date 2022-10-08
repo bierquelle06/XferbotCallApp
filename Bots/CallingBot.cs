@@ -117,8 +117,6 @@ namespace CallingBotSample.Bots
             //this._client = builder.Build();
             //this._client.Calls().OnIncoming += CallingBot_OnIncoming;
             //this._client.Calls().OnUpdated += CallingBot_OnUpdated;
-
-            //_sentryHub.CaptureMessage("Initializing Bot Service");
         }
 
         public override async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
@@ -151,8 +149,6 @@ namespace CallingBotSample.Bots
 
         private void CallingBot_OnUpdated(ICallCollection sender, Microsoft.Graph.Communications.Resources.CollectionEventArgs<ICall> args)
         {
-            _sentryHub.CaptureMessage("CallingBot_OnUpdated");
-
             foreach (var call in args.AddedResources)
             {
                 var callHandler = new CallHandler(this, call, this._serializer);
@@ -170,8 +166,6 @@ namespace CallingBotSample.Bots
 
         private void CallingBot_OnIncoming(ICallCollection sender, Microsoft.Graph.Communications.Resources.CollectionEventArgs<ICall> args)
         {
-            _sentryHub.CaptureMessage("CallingBot_OnIncoming");
-
             args.AddedResources.ForEach(call =>
             {
                 // Get the policy recording parameters.
@@ -270,29 +264,22 @@ namespace CallingBotSample.Bots
         {
             try
             {
-                _sentryHub.CaptureMessage("STEP 2 : ProcessNotificationAsync");
-
                 var httpRequest = request.CreateRequestMessage();
                 var results = await this._authenticationProvider.ValidateInboundRequestAsync(httpRequest).ConfigureAwait(false);
 
                 if (results.IsValid)
                 {
-                    _sentryHub.CaptureMessage("STEP 2.1 : CreateHttpResponseAsync");
-
                     var httpResponse = await this._notificationProcessor.ProcessNotificationAsync(httpRequest).ConfigureAwait(false);
                     await httpResponse.CreateHttpResponseAsync(response).ConfigureAwait(false);
                 }
                 else
                 {
-                    _sentryHub.CaptureMessage("STEP 2.2 : CreateHttpResponseAsync :: Forbidden");
-
                     var httpResponse = httpRequest.CreateResponse(HttpStatusCode.Forbidden);
                     await httpResponse.CreateHttpResponseAsync(response).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
             {
-                _sentryHub.CaptureMessage("ProcessNotificationAsync Error : " + ex.ToString());
                 _sentryHub.CaptureException(ex);
 
                 response.StatusCode = (int)HttpStatusCode.InternalServerError;
@@ -397,6 +384,18 @@ namespace CallingBotSample.Bots
 
                     break;
 
+                case "voicetest":
+
+                    var fileWavResult = await SynthesizeAudioAsync(this._botOptions.BotBaseUrl, "Welcome to Sinansoft");
+
+                    _sentryHub.CaptureMessage("BotAnswerIncomingCall : fileWavResult 1 Uri Result : " + fileWavResult.ToString());
+                    _sentryHub.CaptureMessage("BotAnswerIncomingCall : fileWavResult 2 AbsolutePath Result : " + fileWavResult.AbsolutePath.ToString());
+                    _sentryHub.CaptureMessage("BotAnswerIncomingCall : fileWavResult 2 LocalPath Result : " + fileWavResult.LocalPath.ToString());
+
+                    DeleteLocalFile(fileWavResult.LocalPath.ToString());
+
+                    break;
+
                 case "deleteaudiofiles":
 
                     var files = this._fileProvider.GetDirectoryContents("wwwroot/audio");
@@ -415,10 +414,9 @@ namespace CallingBotSample.Bots
 
                 case "talk":
 
-                    var textToSpeechSdkResult = await SynthesizeAudioAsync("Hello, Mr.Saeid. How are you ? Everything is ok ?");
+                    var textToSpeechSdkResult = await SynthesizeAudioAsync(this._botOptions.BotBaseUrl, "Hello, Mr.Saeid. How are you ? Everything is ok ?");
 
-                    await turnContext.SendActivityAsync("SynthesizeAudioAsync filePath (1) : " + textToSpeechSdkResult.Item1);
-                    await turnContext.SendActivityAsync("SynthesizeAudioAsync file (2) : " + textToSpeechSdkResult.Item2);
+                    await turnContext.SendActivityAsync("SynthesizeAudioAsync filePath (1) : " + textToSpeechSdkResult.AbsolutePath);
 
                     var xmlMessage = string.Format(
                         "<speak version='1.0' xmlns='https://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xmlns:emo='http://www.w3.org/2009/10/emotionml' version='1.0' xml:lang='en-US'>" +
@@ -523,8 +521,10 @@ namespace CallingBotSample.Bots
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _sentryHub.CaptureException(ex);
+
                 return null;
             }
 
@@ -539,30 +539,21 @@ namespace CallingBotSample.Bots
 
         private async Task NotificationProcessor_OnNotificationReceivedAsync(NotificationEventArgs args)
         {
-            this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : CorrelationId :: {args.ScenarioId}");
-            this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : RequestId :: {args.RequestId}");
-
             if (args.ResourceData is Call call)
             {
                 if (args.ChangeType == ChangeType.Created && call.State == CallState.Incoming)
                 {
-                    this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : MyParticipantId :: {call.MyParticipantId}");
-                    this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : CallChainId :: {call.CallChainId}");
-
-                    this._sentryHub.CaptureMessage($"OnNotificationReceivedAsync : UserId :: {call.Source.Identity.User.Id}");
-
                     await this.BotAnswerIncomingCallAsync(call.Id, args.TenantId, args.ScenarioId, call.Source.Identity.User.Id).ConfigureAwait(false);
                 }
             }
-
         }
 
-        private async Task<Tuple<string, string>> SynthesizeAudioAsync(string text)
+        private async Task<Uri> SynthesizeAudioAsync(Uri botBaseUrl, string text)
         {
             var filename = Guid.NewGuid();
 
             var speechConfig = SpeechConfig.FromSubscription(this._botOptions.SpeechSubscriptionKey, this._botOptions.SpeechRegion);
-            speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm);
+            speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm);
 
             using var synthesizer = new SpeechSynthesizer(speechConfig, null);
             var result = await synthesizer.SpeakTextAsync(text).ConfigureAwait(false);
@@ -570,88 +561,52 @@ namespace CallingBotSample.Bots
             using var stream = AudioDataStream.FromResult(result);
             await stream.SaveToWaveFileAsync(@"wwwroot/audio/" + filename + ".wav").ConfigureAwait(false);
 
-            return new Tuple<string, string>("audio/" + filename + ".wav", filename + ".wav");
+            return new Uri(botBaseUrl, "audio/" + filename + ".wav");
         }
 
-        
+
         private async Task BotAnswerIncomingCallAsync(string callId, string tenantId, Guid scenarioId, string sourceUserId)
         {
-            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (1) sourceUserId :: " + sourceUserId);
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (1) callId :: " + callId);
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (2) Graph Info :: " + (this._graph == null ? "Graph is null" : "Graph is not null"));
-
-            var userList = await this._graph.LoadUserGraphAsync();
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (3) User List :: " + (userList.Count == 0 ? "User List count = 0" : "User List count > 0"));
-
-            //To-DO : Aykut AKTAS - "cdf647ad-eb33-4c34-9882-a863a88763b5"
-            // For test
-            // sourceUserId = "cdf647ad-eb33-4c34-9882-a863a88763b5";
-            var caller = userList.Where(x => x.Id == sourceUserId).FirstOrDefault();
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCallAsync : (4) User List By CallerId :: " + (caller == null ? "Caller is null" : "Caller is not null"));
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : (5) Caller OfficeLocation :: " + caller.OfficeLocation ?? "");
-
-            var officeInfo = await GetOfficeByName(caller.OfficeLocation);
-
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : (6) Caller OfficeLocation :: " + caller.OfficeLocation ?? "");
-
-            Tuple<string, string> voiceFileResult = new Tuple<string, string>("", "");
-            if (officeInfo == null)
+            try
             {
-                _sentryHub.CaptureMessage("BotAnswerIncomingCall : (7) officeInfo :: NULL");
+                var userList = await this._graph.LoadUserGraphAsync();
 
-                voiceFileResult = await SynthesizeAudioAsync("Sorry, we don't know your Office Information.");
-            }
-            else
-            {
-                _sentryHub.CaptureMessage("BotAnswerIncomingCall : (7) officeInfo :: " + officeInfo.GreetingCopy);
+                var caller = userList.Where(x => x.Id == sourceUserId).FirstOrDefault();
 
-                voiceFileResult = await SynthesizeAudioAsync(officeInfo.GreetingCopy);
-            }
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : Graph :: Caller Id : " + sourceUserId);
 
-            var filePath = voiceFileResult.Item1;
-            var file = voiceFileResult.Item2;
+                var officeInfo = await GetOfficeByName(caller.OfficeLocation);
 
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : (8) Text to Speech File :: " + filePath);
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : officeInfo :: Name : " + officeInfo.Name);
 
-            //Voice File
-            var uriFile = new Uri(this._botOptions.BotBaseUrl, filePath);
+                string decision;
+                if (officeInfo == null)
+                    decision = "Sorry, we don't know your Office Information.";
+                else
+                    decision = officeInfo.GreetingCopy;
 
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : (9) Text to Speech Uri File : " + uriFile.ToString());
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : GreetingCopy Result : " + decision);
 
-            var callBackUri = new Uri(this._botOptions.BotBaseUrl, "callback");
+                var callBackUri = new Uri(this._botOptions.BotBaseUrl, "callback");
 
-            _sentryHub.CaptureMessage("BotAnswerIncomingCall : (10) CallBack Uri : " + callBackUri.ToString());
+                var fileWavResult = await SynthesizeAudioAsync(this._botOptions.BotBaseUrl, decision);
 
-            //await this.Call.PlayPromptAsync(new List<MediaPrompt> { ttsMediaPrompt }).ConfigureAwait(false);
+                await this._graphServiceClient.Communications.Calls[callId].Answer(
+                            callbackUri: callBackUri.ToString(),
+                            mediaConfig: new ServiceHostedMediaConfig
+                            {
+                                PreFetchMedia = new List<MediaInfo>()
+                                {
+                                new MediaInfo()
+                                {
+                                    Uri = fileWavResult.ToString(),
+                                    ResourceId = Guid.NewGuid().ToString()
+                                }
+                                }
+                            },
+                            acceptedModalities: new List<Modality> { Modality.Audio }).Request().PostAsync();
 
-            Task answerTask = Task.Run(async () =>
-                                await this._graphServiceClient.Communications.Calls[callId].Answer(
-                                    callbackUri: callBackUri.ToString(),
-                                    mediaConfig: new ServiceHostedMediaConfig
-                                    {
-                                        PreFetchMedia = new List<MediaInfo>()
-                                        {
-                                              new MediaInfo()
-                                              {
-                                                  Uri = uriFile.ToString(),
-                                                  ResourceId = Guid.NewGuid().ToString()
-                                              }
-                                        }
-                                    },
-                                    acceptedModalities: new List<Modality> { Modality.Audio }).Request().PostAsync()
-                                 );
-
-            Task welcomeAnswer = await answerTask.ContinueWith(async (antecedent) =>
-            {
-                if (antecedent.Status == System.Threading.Tasks.TaskStatus.RanToCompletion)
-                {
                     await Task.Delay(5000);
-
                     var resultPrompt = await this._graphServiceClient.Communications.Calls[callId].PlayPrompt(
                        prompts: new List<Microsoft.Graph.Prompt>()
                        {
@@ -659,7 +614,7 @@ namespace CallingBotSample.Bots
                              {
                                  MediaInfo = new MediaInfo
                                  {
-                                     Uri = uriFile.ToString(),
+                                     Uri = fileWavResult.ToString(),
                                      ResourceId = Guid.NewGuid().ToString(),
                                  }
                              }
@@ -667,11 +622,15 @@ namespace CallingBotSample.Bots
 
                     if (resultPrompt.Status == OperationStatus.Completed)
                     {
-                        DeleteLocalFile(file);
+                        _sentryHub.CaptureMessage("BotAnswerIncomingCall : (OperationStatus.Completed)");
+                        DeleteLocalFile(fileWavResult.LocalPath.ToString());
                     }
-                }
-            });
-
+                
+            }
+            catch (Exception ex)
+            {
+                _sentryHub.CaptureException(ex);
+            }
         }
 
         /// <summary>
@@ -680,16 +639,15 @@ namespace CallingBotSample.Bots
         /// <param name="file"></param>
         private void DeleteLocalFile(string file)
         {
+            if (file.Contains("audio"))
+                file = file.Replace("/audio/", "");
+
             var files = this._fileProvider.GetDirectoryContents("wwwroot/audio");
 
             var deletedFile = files.Where(x => x.Name == file).FirstOrDefault();
 
-            if(deletedFile != null)
-            {
-                _sentryHub.CaptureMessage("DeleteLocalFile : File Name :: " + deletedFile.Name);
-
+            if (deletedFile != null)
                 System.IO.File.Delete(deletedFile.PhysicalPath);
-            }
         }
     }
 }
