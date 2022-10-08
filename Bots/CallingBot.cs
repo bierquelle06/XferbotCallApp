@@ -579,17 +579,17 @@ namespace CallingBotSample.Bots
 
                 _sentryHub.CaptureMessage("BotAnswerIncomingCall : officeInfo :: Name : " + officeInfo.Name);
 
-                string decision;
+                string answerText;
                 if (officeInfo == null)
-                    decision = "Sorry, we don't know your Office Information.";
+                    answerText = "Sorry, we don't know your Office Information.";
                 else
-                    decision = officeInfo.GreetingCopy;
+                    answerText = officeInfo.GreetingCopy;
 
-                _sentryHub.CaptureMessage("BotAnswerIncomingCall : GreetingCopy Result : " + decision);
+                _sentryHub.CaptureMessage("BotAnswerIncomingCall : GreetingCopy Result : " + answerText);
 
                 var callBackUri = new Uri(this._botOptions.BotBaseUrl, "callback");
 
-                var fileWavResult = await SynthesizeAudioAsync(this._botOptions.BotBaseUrl, decision);
+                var fileWavResult = await SynthesizeAudioAsync(this._botOptions.BotBaseUrl, answerText);
 
                 await this._graphServiceClient.Communications.Calls[callId].Answer(
                             callbackUri: callBackUri.ToString(),
